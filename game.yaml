@@ -1,0 +1,14 @@
+session_name: main-pane-height
+start_directory: '~/sandbox/temp/game'
+windows:
+- layout: main-horizontal
+  options:
+    main-pane-height: 30
+  panes:
+  - shell_command:
+    - atom .
+  - shell_command:
+    - lein figwheel
+  - shell_command:
+    - tig
+  window_name: "coding" 
