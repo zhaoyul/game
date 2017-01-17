@@ -7,14 +7,16 @@
 
 ;; define your app data so that it doesn't get over-written on reload
 
-(def BOARD_SIZE 3)
+(def BOARD_SIZE 9)
+(def WINNING_SIZE 5)
 
 (defn init-board
   [board-size]
   (vec (repeat board-size (vec (repeat board-size :blank)))))
 
 (defonce app-state (atom {:text "Hello world!"
-                          :board (init-board BOARD_SIZE)}))
+                          :board (init-board BOARD_SIZE)
+                          :game-status :in-progress}))
 
 (defn win-line? [owner board [x y] [dx dy] n]
   (every? true?
@@ -30,6 +32,16 @@
           dir [[1 0] [0 1] [1 1] [1 -1]]]
       (win-line? owner board [i j] dir n))))
 
+(defn player-win? [board n]
+  (win? :player board n))
+
+
+(defn full? [board]
+  (every? #{:ai :player} (apply concat board)))
+
+
+(defn ai-win? [board n]
+  (win? :ai board n))
 
 (defn ai-move []
   (let [all-blanks (for [i (range BOARD_SIZE) j (range BOARD_SIZE)
@@ -38,7 +50,9 @@
     (swap! app-state assoc-in [:board (point 0) (point 1)] :ai)))
 
 (defn header []
-  [:h1 (:text @app-state)])
+  [:div
+    [:h1 (:text @app-state)]
+    [:h2 (:game-status @app-state)]])
 
 (defn drawrect [i j]
   [:rect {:width 0.9 :height 0.9
@@ -46,14 +60,18 @@
           :y (+ j 0.05)
           :fill "gray"
           :on-click (fn my-click [event] ()
-                      (swap! app-state assoc-in [:board i j] :player)
-                      (if (win? :player (:baord @app-state) 3)
-                        (do
-                          (prn "hahahahahahaha"))
-                        (ai-move)))}])
-(prn "did i win?"(win? :player (:baord @app-state) 3))
-(prn "did i win?"(win? :player [[:player :ai :blank] [:ai :player :ai] [:blank :blank :player]] 3))
+                      (when (and (not (full? (:board @app-state)))
+                              (= :in-progress (:game-status @app-state)))
+                        (swap! app-state assoc-in [:board i j] :player)
+                        (ai-move))
+                      (when (ai-win? (:board @app-state) WINNING_SIZE)
+                        (swap! app-state assoc-in [:game-status] :ai-win))
+                      (when (player-win? (:board @app-state) WINNING_SIZE)
+                        (swap! app-state assoc-in [:game-status] :player-win)))}])
 
+; (prn "did i win?"(win? :player (@app-state :board) 3))
+; (prn "did i win?"(win? :player [[:player :ai :blank] [:ai :player :ai] [:blank :blank :player]] 3))
+;
 (defn drawcircle [i j]
   [:circle {:r 0.26
             :cx (+ i 0.5)
@@ -87,7 +105,6 @@
           (= :player (get-in @app-state [:board i j]))
           [drawcross i j])))])
 
-(xx)
 (defn game []
   [:center
     [:div
@@ -95,16 +112,14 @@
       [body]
       [:button {:on-click
                   (fn reset-btn [event]
-                     swap! app-state assoc-in [:board] (init-board BOARD_SIZE))}
+                    (swap! app-state assoc-in [:board] (init-board BOARD_SIZE))
+                    (swap! app-state assoc-in [:game-status] :in-progress))}
         "reset"]]])
 
 (reagent/render-component [game]
                           (. js/document (getElementById "app")))
-
 (defn on-js-reload []
   ;; optionally touch your app-state to force rerendering depending on
   ;; your application
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
-  (prn @app-state)
-  (prn (:board @app-state))
-  (prn BOARD_SIZE))
+  (prn @app-state))
